@@ -1,0 +1,45 @@
+{
+  "extraKnownMarketplaces": {
+    "gptaku-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "fivetaku/gptaku_plugins"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "insane-search@gptaku-plugins": true
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git branch:*)",
+      "Bash(git fetch:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)"
+    ],
+    "deny": [
+      "Bash(git push:*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/scripts/wiki-sync.sh",
+            "timeout": 30,
+            "statusMessage": "위키 원격 동기화 확인 중"
+          }
+        ]
+      }
+    ]
+  }
+}

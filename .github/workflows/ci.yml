@@ -1,0 +1,50 @@
+# my-agent-harness CI — 로컬 훅(opt-in)의 최후 방어선.
+# pre-commit(scripts/githooks/)과 같은 검사를 서버에서 강제한다:
+# core.hooksPath를 설정하지 않은 팀원의 push가 유일한 우회로였다.
+#
+# 주의: wiki-lint --check는 review_by가 지난(만료) 문서도 실패로 잡는다 —
+# 커밋 없이도 시간이 지나면 CI가 빨간불이 될 수 있는데, 이것은 버그가 아니라
+# "만료를 놓치지 못하게 한다"는 위키 설계의 의도다 (wiki/SCHEMA.md "유효기한").
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  wiki-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install pyyaml
+      - run: python3 scripts/wiki-lint.py --check
+
+  skill-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install pyyaml
+      - run: python3 scripts/skill-lint.py
+
+  loop-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # loop-lint.py는 표준 라이브러리만 쓴다 — pip 설치 불요.
+      - run: python3 scripts/loop-lint.py
+
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 전 이력 스캔 — 과거 커밋에 묻힌 비밀도 잡는다
+      # 공식 gitleaks-action은 조직 repo에 라이선스 키를 요구하므로
+      # MIT 바이너리를 직접 받아 실행한다. 버전은 로컬 pre-commit과 맞춘다.
+      - name: gitleaks 전 이력 스캔
+        env:
+          GITLEAKS_VERSION: 8.30.1
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar -xz gitleaks
+          ./gitleaks git --no-banner --redact

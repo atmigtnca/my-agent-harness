@@ -1,0 +1,17 @@
+# 개인 자산 — 커밋되지 않음 (경계는 my- 접두사, AGENTS.md "공용과 개인" 절)
+CLAUDE.local.md
+.claude/settings.local.json
+.claude/skills/my-*/
+.claude/agents/my-*.md
+.agents/skills/my-*/
+
+# python 캐시 (wiki-lint 실행 부산물)
+__pycache__/
+
+# 환경 변수
+.env
+.env.*
+!.env.example
+
+# handoff 인계문 (내부 사실 포함 — 커밋 금지)
+.handoff/

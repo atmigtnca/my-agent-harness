@@ -1,0 +1,46 @@
+#!/bin/bash
+# my-agent-harness pre-commit — 비밀 검출(gitleaks) + 위키 변경 시 wiki-lint 통과를 강제한다.
+# 활성화(팀원 최초 1회): git config core.hooksPath scripts/githooks
+set -e
+
+# 비밀 검출 — 모든 커밋 대상 (위키만이 아니라 repo 전체가 유출 경로다)
+if command -v gitleaks >/dev/null 2>&1; then
+    gitleaks git --pre-commit --staged --no-banner --redact || {
+        echo ""
+        echo "커밋 중단: 스테이징된 변경에서 비밀(크리덴셜 의심 문자열)이 검출됐다."
+        echo "값을 제거하고 소재만 기록하라 (규칙: wiki/SCHEMA.md \"민감 정보 3등급\")."
+        echo "오탐이면 .gitleaks.toml allowlist에 사유와 함께 추가."
+        exit 1
+    }
+else
+    echo "⚠️  gitleaks 미설치 — 비밀 검출 없이 커밋된다. 설치: README \"빠른 시작\" 절" >&2
+fi
+
+if git diff --cached --name-only | grep -q "^docs/projects/"; then
+    python3 scripts/loop-lint.py || {
+        echo ""
+        echo "커밋 중단: loop 상태 파일 형식 위반. 위 목록을 고치고 다시 커밋하세요. (규칙: docs/loop/state-files.md)"
+        exit 1
+    }
+fi
+
+if git diff --cached --name-only | grep -qE "^(\.claude|\.agents)/"; then
+    python3 scripts/skill-lint.py || {
+        echo ""
+        echo "커밋 중단: 스킬·에이전트 규격 위반. 위 목록을 고치고 다시 커밋하세요. (규칙: AGENTS.md, docs/agents-guide.md)"
+        exit 1
+    }
+fi
+
+if git diff --cached --name-only | grep -q "^wiki/"; then
+    OUT=$(python3 scripts/wiki-lint.py) || {
+        echo "$OUT"
+        echo ""
+        echo "커밋 중단: 위키 형식 위반. 위 목록을 고치고 다시 커밋하세요. (규칙: wiki/SCHEMA.md)"
+        exit 1
+    }
+    echo "$OUT"
+    # lint가 재생성한 index.md와 만료 배너 갱신 파일을 이번 커밋에 포함
+    echo "$OUT" | sed -n 's/^wiki-lint: 만료 배너 [^ ]* — /wiki\//p' | xargs -r git add --
+    git add wiki/index.md
+fi

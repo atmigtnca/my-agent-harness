@@ -1,0 +1,28 @@
+#!/bin/bash
+# my-agent-harness commit-msg — wiki/ 변경 커밋의 제목 형식을 강제한다.
+# git이 위키 이력의 장부이므로 제목 한 줄 = 장부 한 줄. 형식 원본: wiki/SCHEMA.md
+# 활성화(팀원 최초 1회): git config core.hooksPath scripts/githooks
+set -e
+
+FIRST_LINE=$(head -n1 "$1")
+
+# merge/revert/fixup 커밋은 형식 대상이 아니다
+case "$FIRST_LINE" in
+    Merge*|Revert*|fixup!*|squash!*) exit 0 ;;
+esac
+
+# wiki/ 변경이 없거나 index.md 재생성뿐인 커밋은 예외
+WIKI_CHANGED=$(git diff --cached --name-only | grep '^wiki/' | grep -v '^wiki/index\.md$' || true)
+[ -z "$WIKI_CHANGED" ] && exit 0
+
+if ! printf '%s' "$FIRST_LINE" | grep -qE '^wiki: (기록|승격|수정|삭제|큐레이션|시공) — [^:]+: .+'; then
+    echo "커밋 중단: wiki/ 변경 커밋의 제목 형식이 틀렸다 (제목 한 줄 = 장부 한 줄)."
+    echo ""
+    echo "  형식: wiki: <동작> — <대상>: <요지>"
+    echo "  동작: 기록 | 승격 | 수정 | 삭제 | 큐레이션 | 시공"
+    echo "  예:   wiki: 승격 — cache-strategy: sources 대조 일치 (승인: 홍길동)"
+    echo ""
+    echo "  지금 제목: $FIRST_LINE"
+    echo "  규칙 원본: wiki/SCHEMA.md (\"변경 이력의 장부는 git이다\")"
+    exit 1
+fi
